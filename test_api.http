@@ -1,0 +1,75 @@
+### Review Guess API - Test Guide
+### Utilisation: Installer l'extension "REST Client" pour VS Code
+### Puis cliquez "Send Request" au-dessus de chaque bloc
+
+@base = http://localhost:8080
+@username = 66sceptre
+
+###
+### 1️⃣ HEALTH CHECK
+###
+GET {{base}}/health
+
+###
+### 2️⃣ FETCH REVIEWS - Récupère les reviews d'un utilisateur Letterboxd
+###
+GET {{base}}/api/reviews?username={{username}}
+
+###
+### 3️⃣ START GAME - Initialise une nouvelle partie
+###
+POST {{base}}/api/game/start
+Content-Type: application/json
+
+{
+  "usernames": ["{{username}}"],
+  "question_count": 5
+}
+
+###
+### 4️⃣ GET CURRENT QUESTION - Récupère la question actuelle (sans soumettre)
+###
+GET {{base}}/api/game/question
+
+###
+### 5️⃣ SUBMIT CORRECT ANSWER - Réponse correcte (100 points)
+###
+POST {{base}}/api/game/answer
+Content-Type: application/json
+
+{
+  "guessed_author": "66sceptre",
+  "guessed_film": "project-hail-mary"
+}
+
+###
+### 6️⃣ SUBMIT PARTIAL ANSWER - Réponse partielle: auteur correct, film faux (50 points)
+###
+POST {{base}}/api/game/answer
+Content-Type: application/json
+
+{
+  "guessed_author": "66sceptre",
+  "guessed_film": "wrong-film"
+}
+
+###
+### 7️⃣ SUBMIT WRONG ANSWER - Mauvaise réponse (0 points)
+###
+POST {{base}}/api/game/answer
+Content-Type: application/json
+
+{
+  "guessed_author": "wrong-author",
+  "guessed_film": "wrong-film"
+}
+
+###
+### 8️⃣ GET CURRENT SCORE - Récupère le score actuel
+###
+GET {{base}}/api/game/score
+
+###
+### 9️⃣ GET FINAL RESULTS - Résultats finaux (seulement si jeu terminé)
+###
+GET {{base}}/api/game/results

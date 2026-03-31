@@ -2,30 +2,20 @@ version: '3'
 
 tasks:
   build:
-    desc: Build the CLI binary
+    desc: Build the API binary
     cmds:
-      - go build -o review-guesser ./cmd/review-guess
-      - echo "✓ Build complete! Run with ./review-guesser"
+      - go build -o review-guess ./cmd/review-guess
+      - echo "✓ Build complete! Run with ./review-guess"
 
   run:
-    desc: Run the game
+    desc: Run the API server
     cmds:
       - go run ./cmd/review-guess
-
-  test:
-    desc: Run all tests
-    cmds:
-      - go test -v ./...
-
-  test:coverage:
-    desc: Run tests with coverage
-    cmds:
-      - go test -v -cover ./...
 
   clean:
     desc: Clean build artifacts
     cmds:
-      - rm -f review-guesser
+      - rm -f review-guess
       - go clean
 
   deps:
@@ -38,11 +28,6 @@ tasks:
     desc: Format Go code
     cmds:
       - go fmt ./...
-
-  lint:
-    desc: Run linter (requires golangci-lint)
-    cmds:
-      - golangci-lint run ./...
 
   help:
     desc: Show this help message

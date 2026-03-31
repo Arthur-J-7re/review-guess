@@ -1,53 +1,167 @@
-# 🎮 Review-Guesser - Architecture Détaillée
+# Review Guess API - Architecture
 
-## 📋 Vue d'ensemble
+## Overview
 
-**Objectif:** Jeu local PowerPoint-style où on rentre des pseudos Letterboxd, on fetch les reviews, et on joue directement (offline).
+A simple REST API for fetching Letterboxd reviews from one or multiple users.
 
-**Format:** CLI interactive (go run) ou binaire local
-- Pas de sessions persistantes
-- Pas de multi-joueur en temps réel
-- Jeu local/offline une fois les données chargées
-- Fetch one-time au démarrage, puis jeu immédiat
+## Architecture Pattern
 
-**Architecture:** Simplifiée (garde les bons patterns de twin-pick, mais adapté au contexte local)
+**Hexagonal Architecture** with clear separation of concerns:
 
----
-
-## 1️⃣ **Modèles de Domaine (Domain Models)**
-
-**Beaucoup plus simples qu'avant - juste les data + le jeu en mémoire**
-
-### Structure proposée:
 ```
-review-guess/internal/domain/
-├── models.go          # Review, User, Film, Game state
-├── ports.go           # Interface pour scrapper Letterboxd
-└── errors.go          # Erreurs métier
+Presentation (HTTP)
+    ↓
+Application (Business Logic)
+    ↓
+Domain (Models)
+    ↓
+Infrastructure (Scraper)
 ```
 
-### Modèles détaillés:
+## Components
+
+### Domain Layer (`internal/domain/`)
+
+**Models:**
+- `Review`: Represents a single review
+  - author, title, slug, content, rating, liked, spoilers
+- `Reviews`: Collection of reviews
+  - count, list of reviews
+
+**Ports (Interfaces):**
+- `ReviewProvider`: Interface for scraping reviews
+  - `FetchUserReviews(username string) ([]*Review, error)`
+
+**Errors:**
+- `ErrInvalidUsername`: Invalid letterboxd username
+- `ScrapperError`: Wrapped scraping errors
+
+### Application Layer (`internal/application/`)
+
+**ReviewService:**
+- Orchestrates review fetching from multiple users
+- Merges reviews from multiple sources
+- Validates inputs
 
 ```go
-// User représente un utilisateur Letterboxd
-type User struct {
-    Username string    // ID unique
-    Name     string    // nom d'affichage (optionnel)
-    Reviews  []*Review // reviews fetchées au démarrage
+type ReviewService struct {
+    provider ReviewProvider
 }
 
-// Film représente un film sur Letterboxd
-type Film struct {
-    Slug      string  // film slug (unique)
-    Title     string
-    Year      int
-    Directors []string
-    Poster    string // URL poster
-}
+func (s *ReviewService) GetReviews(usernames ...string) (*Reviews, error)
+```
 
-// Review = une critique d'utilisateur sur un film
-type Review struct {
-    ID        string    // unique
+### Infrastructure Layer (`internal/infrastructure/`)
+
+**Scraper (`scrapper/`):**
+- Implements `ReviewProvider` interface
+- Uses Gocolly for web scraping
+- Rate limiting (3s delay + 2s random)
+- Browser-like headers for authentication
+- Parses Letterboxd HTML structure
+
+### Adapter Layer (`internal/adapters/`)
+
+**HTTP API (`httpapi/`):**
+- Router: Registers HTTP routes
+- Handlers: HTTP handlers for endpoints
+- Response formatting
+
+**Routes:**
+- `GET /health` - Health check
+- `GET /api/reviews?username=...` - Fetch reviews
+
+## Data Flow
+
+```
+1. HTTP Request
+     ↓
+2. Router (Route matching)
+     ↓
+3. Handler (Extract parameters)
+     ↓
+4. ReviewService (Business logic)
+     ↓
+5. Scraper (ReviewProvider implementation)
+     ↓
+6. Letterboxd (Web scraping)
+     ↓
+7. Response (JSON)
+```
+
+### Example Flow
+
+```
+GET /api/reviews?username=alice&username=bob
+    ↓
+Router → handleGetReviews
+    ↓
+Extract: usernames = ["alice", "bob"]
+    ↓
+ReviewService.GetReviews("alice", "bob")
+    ↓
+For each user:
+  → Scraper.FetchUserReviews("alice")
+  → Parse HTML, extract reviews
+  → Return []*Review
+    ↓
+Merge all reviews
+    ↓
+Return Reviews{Count: X, Reviews: []}
+    ↓
+JSON Response
+```
+
+## Key Design Decisions
+
+1. **Simplicity First**: Only what's needed for review fetching
+2. **Stateless**: No persistence, no game logic
+3. **Interface-Driven**: Scraper behind ReviewProvider interface for testability
+4. **Rate-Limited**: Respectful web scraping with delays
+5. **Error Handling**: Clear error types and wrapping
+6. **Hexagonal**: Easy to test and extend
+
+## Project Structure
+
+```
+review-guess/
+├── cmd/
+│   └── review-guess/
+│       └── main.go              # Entry point
+├── internal/
+│   ├── domain/
+│   │   ├── models.go            # Review, Reviews structs
+│   │   ├── errors.go            # Error definitions
+│   │   └── ports.go             # ReviewProvider interface
+│   ├── application/
+│   │   └── review_service.go    # ReviewService
+│   ├── infrastructure/
+│   │   └── scrapper/
+│   │       └── scrapper.go      # Letterboxd scraper
+│   └── adapters/
+│       └── httpapi/
+│           ├── router.go        # HTTP router
+│           └── handlers.go      # HTTP handlers
+├── API.md                       # API documentation
+├── README.md
+└── go.mod
+```
+
+## Dependencies
+
+- `github.com/gocolly/colly/v2`: Web scraping library
+- `github.com/charmbracelet/log`: Logging
+
+## Future Extensibility
+
+The architecture allows easy addition of:
+- Caching layer
+- Database persistence
+- Different scraper implementations
+- GraphQL endpoint
+- WebSocket for real-time updates
+- Additional review sources (IMDb, etc.)
+    // unique
     Author    string    // username
     Film      *Film     // sur quel film
     Content   string    // le texte de la review

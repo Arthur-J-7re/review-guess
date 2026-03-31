@@ -20,14 +20,9 @@ func main() {
 	// Start server
 	port := ":8080"
 	logger.Info("Starting Review Guess API", "port", port)
-	logger.Info("Health check: http://localhost:8080/health")
-	logger.Info("API docs:")
+	logger.Info("Available endpoints:")
+	logger.Info("  GET  /health - Health check")
 	logger.Info("  GET  /api/reviews?username={username} - Fetch user reviews")
-	logger.Info("  POST /api/game/start - Start a new game")
-	logger.Info("  GET  /api/game/question - Get current question")
-	logger.Info("  POST /api/game/answer - Submit an answer")
-	logger.Info("  GET  /api/game/score - Get current score")
-	logger.Info("  GET  /api/game/results - Get final results")
 	fmt.Println()
 
 	if err := http.ListenAndServe(port, mux); err != nil {

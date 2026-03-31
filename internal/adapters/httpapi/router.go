@@ -4,17 +4,25 @@ import (
 	"net/http"
 
 	"github.com/charmbracelet/log"
+
+	"review-guess/internal/application"
+	"review-guess/internal/infrastructure/scrapper"
 )
 
 // Router gère les routes HTTP
 type Router struct {
-	handler *Handler
+	reviewService *application.ReviewService
+	logger        *log.Logger
 }
 
 // NewRouter crée un nouveau router
 func NewRouter(logger *log.Logger) *Router {
+	scraper := scrapper.NewScrapper()
+	reviewService := application.NewReviewService(scraper)
+
 	return &Router{
-		handler: NewHandler(logger),
+		reviewService: reviewService,
+		logger:        logger,
 	}
 }
 
@@ -23,15 +31,10 @@ func (r *Router) Register() http.Handler {
 	mux := http.NewServeMux()
 
 	// Routes API
-	mux.HandleFunc("GET /api/reviews", r.handler.FetchReviews)
-	mux.HandleFunc("POST /api/game/start", r.handler.StartGame)
-	mux.HandleFunc("GET /api/game/question", r.handler.GetCurrentQuestion)
-	mux.HandleFunc("POST /api/game/answer", r.handler.SubmitAnswer)
-	mux.HandleFunc("GET /api/game/score", r.handler.GetScore)
-	mux.HandleFunc("GET /api/game/results", r.handler.GetResults)
+	mux.HandleFunc("GET /api/reviews", r.handleGetReviews)
 
 	// Health check
-	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /health", func(w http.ResponseWriter, req *http.Request) {
 		jsonResponse(w, http.StatusOK, Response{
 			Success: true,
 			Data:    "Review Guess API v1.0",
@@ -39,4 +42,31 @@ func (r *Router) Register() http.Handler {
 	})
 
 	return mux
+}
+
+// handleGetReviews traite la requête GET /api/reviews
+func (r *Router) handleGetReviews(w http.ResponseWriter, req *http.Request) {
+	usernames := req.URL.Query()["username"]
+	if len(usernames) == 0 {
+		jsonResponse(w, http.StatusBadRequest, Response{
+			Success: false,
+			Error:   "username parameter is required",
+		})
+		return
+	}
+
+	reviews, err := r.reviewService.GetReviews(usernames...)
+	if err != nil {
+		r.logger.Error("Error fetching reviews", "error", err)
+		jsonResponse(w, http.StatusBadRequest, Response{
+			Success: false,
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	jsonResponse(w, http.StatusOK, Response{
+		Success: true,
+		Data:    reviews,
+	})
 }

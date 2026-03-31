@@ -1,16 +1,18 @@
-# Review Guess - Simple Backend API
+# Review Guess API
 
-A simple Go backend API for fetching Letterboxd reviews and managing a movie review guessing game. The API is designed to be consumed by any frontend (web, mobile, etc.).
+Simple REST API for fetching Letterboxd reviews from one or multiple users.
 
-## API Endpoints
+## Endpoints
 
 ### Health Check
+
 ```
 GET /health
 ```
-Returns basic API status.
 
-**Response:**
+Verifies the API is running.
+
+**Response:** 200 OK
 ```json
 {
   "success": true,
@@ -20,30 +22,44 @@ Returns basic API status.
 
 ---
 
-### Fetch Reviews
+### Get Reviews
+
 ```
-GET /api/reviews?username={username}
+GET /api/reviews?username={username}[&username={username}]...
 ```
 
-Fetches all reviews from a Letterboxd user.
+Fetches reviews from specified user(s).
 
 **Parameters:**
-- `username` (required): Letterboxd username
+- `username` (required, repeatable): Letterboxd username(s)
 
-**Response:**
+**Query Examples:**
+- Single user: `GET /api/reviews?username=alice`
+- Multiple users: `GET /api/reviews?username=alice&username=bob&username=charlie`
+
+**Success Response:** 200 OK
 ```json
 {
   "success": true,
   "data": {
-    "count": 18,
+    "count": 25,
     "reviews": [
       {
-        "author": "66sceptre",
-        "title": "Alter Ego",
-        "slug": "alter-ego-2026",
-        "content": "Je me suis fait 15 fois...",
-        "rating": 3,
+        "author": "alice",
+        "title": "The Shawshank Redemption",
+        "slug": "the-shawshank-redemption-1994",
+        "content": "A masterpiece of cinema...",
+        "rating": 5,
         "liked": true,
+        "spoilers": false
+      },
+      {
+        "author": "bob",
+        "title": "Inception",
+        "slug": "inception-2010",
+        "content": "Mind-bending and brilliant...",
+        "rating": 4,
+        "liked": false,
         "spoilers": false
       }
     ]
@@ -51,266 +67,92 @@ Fetches all reviews from a Letterboxd user.
 }
 ```
 
-**Error Response:**
+**Error Response:** 400 Bad Request
 ```json
 {
   "success": false,
-  "error": "No reviews found for this user"
+  "error": "username parameter is required"
 }
 ```
 
----
+## Review Object
 
-### Start a Game
-```
-POST /api/game/start
-```
+| Field | Type | Description |
+|-------|------|-------------|
+| `author` | string | Letterboxd username |
+| `title` | string | Film title |
+| `slug` | string | Unique film slug (for linking) |
+| `content` | string | Review text |
+| `rating` | int | Rating 0-5 (0 = watched, 1-5 = stars) |
+| `liked` | boolean | Whether the review is liked |
+| `spoilers` | boolean | Whether marked as spoilers |
 
-Initializes a new game session by fetching reviews from specified users.
+## HTTP Status Codes
 
-**Request Body:**
-```json
-{
-  "usernames": ["66sceptre", "anderlybox"],
-  "question_count": 10
-}
-```
+| Code | Meaning |
+|------|---------|
+| 200 | Success |
+| 400 | Bad request (missing username parameter) |
+| 500 | Server error (scraping failed) |
 
-**Parameters:**
-- `usernames` (required): Array of Letterboxd usernames
-- `question_count` (optional): Number of questions (default: 10)
+## Examples
 
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "message": "Game started",
-    "total_questions": 10,
-    "current_question": {
-      "index": 1,
-      "total": 10,
-      "review": {
-        "author": "66sceptre",
-        "title": "Alter Ego",
-        "slug": "alter-ego-2026",
-        "content": "Je me suis fait 15 fois...",
-        "rating": 3,
-        "liked": true,
-        "spoilers": false
-      },
-      "difficulty": 1.2
-    }
-  }
-}
-```
-
----
-
-### Get Current Question
-```
-GET /api/game/question
-```
-
-Retrieves the current question without submitting an answer.
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "index": 1,
-    "total": 10,
-    "review": {
-      "author": "66sceptre",
-      "title": "Alter Ego",
-      "slug": "alter-ego-2026",
-      "content": "Je me suis fait 15 fois...",
-      "rating": 3,
-      "liked": true,
-      "spoilers": false
-    },
-    "difficulty": 1.2
-  }
-}
-```
-
----
-
-### Submit an Answer
-```
-POST /api/game/answer
-```
-
-Submits the player's guess for the current question (author + film).
-
-**Request Body:**
-```json
-{
-  "guessed_author": "66sceptre",
-  "guessed_film": "alter-ego-2026"
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "correct": true,
-    "partial_author": false,
-    "partial_film": false,
-    "correct_author": "66sceptre",
-    "correct_film": "Alter Ego",
-    "correct_slug": "alter-ego-2026",
-    "points": 100,
-    "current_score": 100,
-    "is_game_over": false
-  }
-}
-```
-
-**Scoring:**
-- Both correct (author + film): **100 points**
-- Partial (either author OR film): **50 points**
-- Both wrong: **0 points**
-
----
-
-### Get Current Score
-```
-GET /api/game/score
-```
-
-Retrieves the current game score and progress.
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "current_score": 150,
-    "answered": 2,
-    "total_questions": 10,
-    "is_game_over": false
-  }
-}
-```
-
----
-
-### Get Final Results
-```
-GET /api/game/results
-```
-
-Retrieves final results when game is complete. Only available after all questions answered.
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "score": 750,
-    "total_points": 1000,
-    "percentage": 75,
-    "grade": "B",
-    "answered": 10,
-    "total": 10
-  }
-}
-```
-
-**Grade Scale:**
-- A+: 90-100%
-- A: 80-89%
-- B: 70-79%
-- C: 60-69%
-- F: < 60%
-
----
-
-## Error Responses
-
-All error responses follow this format:
-
-```json
-{
-  "success": false,
-  "error": "Error message describing what went wrong"
-}
-```
-
-**Common HTTP Status Codes:**
-- `200 OK`: Request successful
-- `400 Bad Request`: Invalid input or bad request
-- `404 Not Found`: No reviews found
-- `500 Internal Server Error`: Server error during execution
-- `405 Method Not Allowed`: Wrong HTTP method
-
----
-
-## Game Flow Example
-
-1. **Start a game:**
-   ```bash
-   curl -X POST http://localhost:8080/api/game/start \
-     -H "Content-Type: application/json" \
-     -d '{
-       "usernames": ["66sceptre"],
-       "question_count": 5
-     }'
-   ```
-
-2. **Get current question:**
-   ```bash
-   curl http://localhost:8080/api/game/question
-   ```
-
-3. **Submit answer:**
-   ```bash
-   curl -X POST http://localhost:8080/api/game/answer \
-     -H "Content-Type: application/json" \
-     -d '{
-       "guessed_author": "66sceptre",
-       "guessed_film": "alter-ego-2026"
-     }'
-   ```
-
-4. **Repeat steps 2-3 for each question**
-
-5. **Get final results:**
-   ```bash
-   curl http://localhost:8080/api/game/results
-   ```
-
----
-
-## Running the Server
+### Using curl
 
 ```bash
-go build -o review-guess ./cmd/review-guess
-./review-guess
+# Single user
+curl "http://localhost:8080/api/reviews?username=alice"
+
+# Multiple users
+curl "http://localhost:8080/api/reviews?username=alice&username=bob"
 ```
 
-The server starts on `http://localhost:8080`
+### Using fetch (JavaScript)
 
----
+```javascript
+const usernames = ['alice', 'bob'];
+const params = usernames.map(u => `username=${u}`).join('&');
 
-## Architecture
+fetch(`http://localhost:8080/api/reviews?${params}`)
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      console.log(`Got ${data.data.count} reviews`);
+      data.data.reviews.forEach(review => {
+        console.log(`${review.author}: ${review.title}`);
+      });
+    }
+  });
+```
 
-- **Domain Layer**: Core game models (Review, Film, Question, etc.)
-- **Application Layer**: GameService with game logic
-- **Infrastructure Layer**: Gocolly-based Letterboxd scraper
-- **Adapter Layer**: HTTP handlers for REST API
+### Using Python
 
----
+```python
+import requests
+
+usernames = ['alice', 'bob']
+params = {'username': usernames}
+
+response = requests.get('http://localhost:8080/api/reviews', params=params)
+data = response.json()
+
+if data['success']:
+    print(f"Got {data['data']['count']} reviews")
+    for review in data['data']['reviews']:
+        print(f"{review['author']}: {review['title']}")
+```
+
+## Rate Limiting
+
+The scraper includes built-in rate limiting:
+- 3 seconds delay between pages
+- 2 seconds random delay
+- Respects Letterboxd's terms of service
 
 ## Notes
 
-- Reviews are fetched from Letterboxd in real-time
-- Rate limiting: 2 seconds between pages + 1 second random delay
-- Questions are randomly shuffled from all fetched reviews
-- Difficulty is calculated based on review length and rating presence
-- Game state is stored in-memory per session
-- Each game session is independent (creates new GameService)
+- Reviews are scraped in real-time from Letterboxd
+- Results are not cached
+- Multiple requests for the same user will scrape again
+- Minimum review content: empty reviews are skipped
+

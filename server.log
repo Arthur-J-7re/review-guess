@@ -1,0 +1,6 @@
+INFO Starting Review Guess API port=:8080
+INFO Available endpoints:
+INFO   GET  /health - Health check
+INFO   GET  /api/reviews?username={username} - Fetch user reviews
+
+FATA Server error err="listen tcp :8080: bind: address already in use"

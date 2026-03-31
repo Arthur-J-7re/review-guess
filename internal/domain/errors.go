@@ -4,11 +4,7 @@ import "fmt"
 
 // Erreurs métier
 var (
-	ErrInvalidUsername  = fmt.Errorf("invalid username")
-	ErrNotEnoughReviews = fmt.Errorf("not enough reviews to generate questions")
-	ErrGameNotStarted   = fmt.Errorf("game not started")
-	ErrGameOver         = fmt.Errorf("game is over")
-	ErrInvalidAnswer    = fmt.Errorf("invalid answer")
+	ErrInvalidUsername = fmt.Errorf("invalid username")
 )
 
 // ScrapperError wraps scrapping errors

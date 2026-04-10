@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  review-guess:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      - review-guess-data:/app/data
+      - ./migrations:/app/migrations
+    environment:
+      - DATABASE_PATH=/app/data/review-guess.db
+    container_name: review-guess-app
+
+volumes:
+  review-guess-data:

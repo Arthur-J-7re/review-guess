@@ -1,158 +1,252 @@
-# Review Guess API
+# API Endpoints - Review Guess v2.0
 
-Simple REST API for fetching Letterboxd reviews from one or multiple users.
-
-## Endpoints
-
-### Health Check
-
+## Base URL
 ```
-GET /health
+http://localhost:8080
 ```
 
-Verifies the API is running.
+---
 
-**Response:** 200 OK
+## Health Check
+
+### GET /health
+Returns API status.
+
+**Response:**
 ```json
 {
   "success": true,
-  "data": "Review Guess API v1.0"
+  "data": "Review Guess API v2.0 - Player/Reviewer Architecture"
 }
 ```
 
 ---
 
-### Get Reviews
+## Scraper Endpoints
 
+### GET /api/reviews
+Fetch reviews for one or multiple Letterboxd usernames.
+
+**Query Parameters:**
+- `username` (required, comma-separated) - Letterboxd username(s)
+
+**Examples:**
+```bash
+# Single username
+GET /api/reviews?username=alice
+
+# Multiple usernames (comma-separated)
+GET /api/reviews?username=alice,bob,charlie
 ```
-GET /api/reviews?username={username}[&username={username}]...
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "review-1",
+      "title": "Amazing film!",
+      "movie_title": "The Shawshank Redemption",
+      "username": "alice",
+      "rating": 5.0,
+      "content": "Best movie ever..."
+    }
+  ]
+}
 ```
 
-Fetches reviews from specified user(s).
+---
 
-**Parameters:**
-- `username` (required, repeatable): Letterboxd username(s)
+## Reviewer Management
 
-**Query Examples:**
-- Single user: `GET /api/reviews?username=alice`
-- Multiple users: `GET /api/reviews?username=alice&username=bob&username=charlie`
+### GET /api/reviewers
+List all scraped reviewers in the system.
 
-**Success Response:** 200 OK
+**Response:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "reviewer-alice",
+      "letterboxd_username": "alice",
+      "total_reviews": 150,
+      "total_movies_watched": 250,
+      "last_scrapped_at": "2026-04-03T10:22:39Z",
+      "created_at": "2026-04-02T14:30:00Z",
+      "updated_at": "2026-04-03T10:22:39Z"
+    }
+  ]
+}
+```
+
+---
+
+### GET /api/reviewers/{username}
+Get a specific reviewer by Letterboxd username.
+
+**Path Parameters:**
+- `username` (required) - Letterboxd username to retrieve
+
+**Example:**
+```bash
+GET /api/reviewers/alice
+```
+
+**Response:**
 ```json
 {
   "success": true,
   "data": {
-    "count": 25,
-    "reviews": [
-      {
-        "author": "alice",
-        "title": "The Shawshank Redemption",
-        "slug": "the-shawshank-redemption-1994",
-        "content": "A masterpiece of cinema...",
-        "rating": 5,
-        "liked": true,
-        "spoilers": false
-      },
-      {
-        "author": "bob",
-        "title": "Inception",
-        "slug": "inception-2010",
-        "content": "Mind-bending and brilliant...",
-        "rating": 4,
-        "liked": false,
-        "spoilers": false
-      }
+    "id": "reviewer-alice",
+    "letterboxd_username": "alice",
+    "total_reviews": 150,
+    "total_movies_watched": 250,
+    "last_scrapped_at": "2026-04-03T10:22:39Z",
+    "created_at": "2026-04-02T14:30:00Z",
+    "updated_at": "2026-04-03T10:22:39Z"
+  }
+}
+```
+
+**Error Response (404):**
+```json
+{
+  "success": false,
+  "error": "Reviewer not found"
+}
+```
+
+---
+
+## Quiz Endpoints
+
+### GET /api/quiz/next
+Get the next quiz question for a player.
+
+**Query Parameters:**
+- `player_id` (required) - Unique player identifier
+
+**Example:**
+```bash
+GET /api/quiz/next?player_id=player-alice-123
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "review_id": "review-456",
+    "correct_movie_id": "tt0111161",
+    "title": "One of the best films ever made",
+    "content": "The story of two imprisoned men...",
+    "options": [
+      "tt0111161",
+      "tt0068646",
+      "tt0050083",
+      "tt0047478"
     ]
   }
 }
 ```
 
-**Error Response:** 400 Bad Request
+**Error Response (404):**
 ```json
 {
   "success": false,
-  "error": "username parameter is required"
+  "error": "No quiz questions available"
 }
 ```
 
-## Review Object
+---
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `author` | string | Letterboxd username |
-| `title` | string | Film title |
-| `slug` | string | Unique film slug (for linking) |
-| `content` | string | Review text |
-| `rating` | int | Rating 0-5 (0 = watched, 1-5 = stars) |
-| `liked` | boolean | Whether the review is liked |
-| `spoilers` | boolean | Whether marked as spoilers |
+### POST /api/quiz/answer
+Record a player's quiz answer.
+
+**Form Parameters:**
+- `player_id` (required) - Player identifier
+- `review_id` (required) - Review identifier (from quiz question)
+- `answer_id` (optional) - Movie ID selected by player (empty string = skipped)
+
+**Example:**
+```bash
+curl -X POST http://localhost:8080/api/quiz/answer \
+  -d "player_id=player-alice-123" \
+  -d "review_id=review-456" \
+  -d "answer_id=tt0111161"
+```
+
+**Response (Correct):**
+```json
+{
+  "success": true,
+  "data": {
+    "correct": true,
+    "correct_movie_id": "tt0111161"
+  }
+}
+```
+
+**Response (Incorrect):**
+```json
+{
+  "success": true,
+  "data": {
+    "correct": false,
+    "correct_movie_id": "tt0111161"
+  }
+}
+```
+
+**Error Response:**
+```json
+{
+  "success": false,
+  "error": "player_id and review_id are required"
+}
+```
+
+---
+
+### GET /api/quiz/stats
+Get player's quiz statistics.
+
+**Query Parameters:**
+- `player_id` (required) - Player identifier
+
+**Example:**
+```bash
+GET /api/quiz/stats?player_id=player-alice-123
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "player_id": "player-alice-123",
+    "total": 10,
+    "correct": 7,
+    "accuracy": 70.0
+  }
+}
+```
+
+**Error Response (404):**
+```json
+{
+  "success": false,
+  "error": "Player not found or no answers recorded"
+}
+```
+
+---
 
 ## HTTP Status Codes
-
-| Code | Meaning |
-|------|---------|
-| 200 | Success |
-| 400 | Bad request (missing username parameter) |
-| 500 | Server error (scraping failed) |
-
-## Examples
-
-### Using curl
-
-```bash
-# Single user
-curl "http://localhost:8080/api/reviews?username=alice"
-
-# Multiple users
-curl "http://localhost:8080/api/reviews?username=alice&username=bob"
-```
-
-### Using fetch (JavaScript)
-
-```javascript
-const usernames = ['alice', 'bob'];
-const params = usernames.map(u => `username=${u}`).join('&');
-
-fetch(`http://localhost:8080/api/reviews?${params}`)
-  .then(res => res.json())
-  .then(data => {
-    if (data.success) {
-      console.log(`Got ${data.data.count} reviews`);
-      data.data.reviews.forEach(review => {
-        console.log(`${review.author}: ${review.title}`);
-      });
-    }
-  });
-```
-
-### Using Python
-
-```python
-import requests
-
-usernames = ['alice', 'bob']
-params = {'username': usernames}
-
-response = requests.get('http://localhost:8080/api/reviews', params=params)
-data = response.json()
-
-if data['success']:
-    print(f"Got {data['data']['count']} reviews")
-    for review in data['data']['reviews']:
-        print(f"{review['author']}: {review['title']}")
-```
-
-## Rate Limiting
-
-The scraper includes built-in rate limiting:
-- 3 seconds delay between pages
-- 2 seconds random delay
-- Respects Letterboxd's terms of service
-
-## Notes
-
-- Reviews are scraped in real-time from Letterboxd
-- Results are not cached
-- Multiple requests for the same user will scrape again
-- Minimum review content: empty reviews are skipped
+- `200 OK` - Request succeeded
+- `400 Bad Request` - Missing or invalid parameters
+- `404 Not Found` - Resource not found
+- `500 Internal Server Error` - Server error
 

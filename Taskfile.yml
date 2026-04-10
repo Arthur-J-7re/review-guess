@@ -4,13 +4,13 @@ tasks:
   build:
     desc: Build the API binary
     cmds:
-      - go build -o review-guess ./cmd/review-guess
+      - CGO_ENABLED=1 go build -o review-guess ./cmd/review-guess
       - echo "✓ Build complete! Run with ./review-guess"
 
   run:
     desc: Run the API server
     cmds:
-      - go run ./cmd/review-guess
+      - CGO_ENABLED=1 go run ./cmd/review-guess
 
   clean:
     desc: Clean build artifacts
@@ -33,3 +33,30 @@ tasks:
     desc: Show this help message
     cmds:
       - task -l
+
+  # ===== Docker Tasks =====
+
+  docker-build:
+    desc: Build Docker image
+    cmds:
+      - docker build -t review-guess .
+
+  docker-run:
+    desc: Run Docker container (standalone)
+    cmds:
+      - docker run -p 8080:8080 review-guess
+
+  docker-up:
+    desc: Run with Docker Compose (recommended)
+    cmds:
+      - docker-compose up --build
+
+  docker-down:
+    desc: Stop Docker Compose services
+    cmds:
+      - docker-compose down
+
+  docker-logs:
+    desc: View Docker Compose logs
+    cmds:
+      - docker-compose logs -f
